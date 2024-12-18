@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Variables
+APP_NAME="Cursor"
+APP_VERSION="latest"
+APP_IMAGE_URL="https://downloader.cursor.sh/linux/appImage/x64"
+INSTALL_DIR="$HOME/.local/bin"
+DESKTOP_FILE_DIR="$HOME/.local/share/applications"
+ICON_URL="https://global.discourse-cdn.com/flex020/uploads/cursor1/original/2X/f/f7bc157cca4b97c3f0fc83c3c1a7094871a268df.png"
+ICON_PATH="$HOME/.local/share/icons/cursor-icon.png"
+SERVICE_FILE="$HOME/.config/systemd/user/$APP_NAME-update.service"
+TIMER_FILE="$HOME/.config/systemd/user/$APP_NAME-update.timer"
+
+echo "Installing $APP_NAME..."
+
+# Step 1: Create necessary directories
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$DESKTOP_FILE_DIR"
+mkdir -p "$(dirname "$ICON_PATH")"
+mkdir -p "$(dirname "$SERVICE_FILE")"
+
+# Step 2: Download Cursor AppImage
+echo "Downloading $APP_NAME AppImage..."
+curl -L "$APP_IMAGE_URL" -o "$INSTALL_DIR/$APP_NAME.AppImage"
+
+# Step 3: Make the AppImage executable
+chmod +x "$INSTALL_DIR/$APP_NAME.AppImage"
+
+# Step 4: Download the icon
+echo "Downloading $APP_NAME icon..."
+curl -L "$ICON_URL" -o "$ICON_PATH"
+
+# Step 5: Create a desktop entry
+echo "Creating desktop entry..."
+cat > "$DESKTOP_FILE_DIR/$APP_NAME.desktop" <<EOL
+[Desktop Entry]
+Name=$APP_NAME
+Exec=$INSTALL_DIR/$APP_NAME.AppImage --no-sandbox
+Icon=$ICON_PATH
+Type=Application
+Categories=Development;
+EOL
+
+# Step 6: Create update service
+echo "Creating update service..."
+cat > "$SERVICE_FILE" <<EOL
+[Unit]
+Description=Update $APP_NAME AppImage
+
+[Service]
+ExecStart=/usr/bin/env bash -c "curl -L $APP_IMAGE_URL -o $INSTALL_DIR/$APP_NAME.AppImage && chmod +x $INSTALL_DIR/$APP_NAME.AppImage"
+EOL
+
+# Step 7: Create timer to run the update service daily
+echo "Creating update timer..."
+cat > "$TIMER_FILE" <<EOL
+[Unit]
+Description=Daily update check for $APP_NAME AppImage
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOL
+
+# Step 8: Create a wrapper script for Cursor
+echo "Creating a wrapper script for Cursor..."
+cat > "$INSTALL_DIR/cursor" <<EOL
+#!/bin/bash
+
+# Launch Cursor
+$INSTALL_DIR/$APP_NAME.AppImage --no-sandbox "$@" &> "$(mktemp /tmp/cursor.XXXXX)" & disown
+EOL
+chmod +x "$INSTALL_DIR/cursor"
+
+# Step 9: Enable and start the timer
+echo "Enabling and starting update timer..."
+systemctl --user enable --now "$APP_NAME-update.timer"
+
+# Step 10: Update desktop database (optional but recommended)
+echo "Updating desktop database..."
+if command -v update-desktop-database &> /dev/null; then
+    update-desktop-database "$DESKTOP_FILE_DIR"
+else
+    echo "Desktop database update command not found. You may need to do this manually."
+fi
+
+# Step 10: Notify the user
+echo "$APP_NAME has been installed successfully!"
+echo "You can launch it from your application menu or by running:"
+echo "cursor [filename|directory]"
+echo "Automatic updates are enabled with systemd."
