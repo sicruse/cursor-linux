@@ -68,7 +68,19 @@ Persistent=true
 WantedBy=timers.target
 EOL
 
-# Step 8: Create a wrapper script for Cursor
+# Step 8: Enable and start the timer
+echo "Enabling and starting update timer..."
+systemctl --user enable --now "$APP_NAME-update.timer"
+
+# Step 9: Update desktop database (optional but recommended)
+echo "Updating desktop database..."
+if command -v update-desktop-database &> /dev/null; then
+    update-desktop-database "$DESKTOP_FILE_DIR"
+else
+    echo "Desktop database update command not found. You may need to do this manually."
+fi
+
+# Step 10: Create a wrapper script for Cursor
 echo "Creating a wrapper script for Cursor..."
 cat > "$INSTALL_DIR/cursor" <<EOL
 #!/bin/bash
@@ -78,19 +90,7 @@ $INSTALL_DIR/$APP_NAME.AppImage --no-sandbox "$@" &> "$(mktemp /tmp/cursor.XXXXX
 EOL
 chmod +x "$INSTALL_DIR/cursor"
 
-# Step 9: Enable and start the timer
-echo "Enabling and starting update timer..."
-systemctl --user enable --now "$APP_NAME-update.timer"
-
-# Step 10: Update desktop database (optional but recommended)
-echo "Updating desktop database..."
-if command -v update-desktop-database &> /dev/null; then
-    update-desktop-database "$DESKTOP_FILE_DIR"
-else
-    echo "Desktop database update command not found. You may need to do this manually."
-fi
-
-# Step 10: Notify the user
+# Step 11: Notify the user
 echo "$APP_NAME has been installed successfully!"
 echo "You can launch it from your application menu or by running:"
 echo "cursor [filename|directory]"
