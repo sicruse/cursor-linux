@@ -86,7 +86,7 @@ cat > "$INSTALL_DIR/cursor" <<EOL
 #!/bin/bash
 
 # Launch Cursor
-$INSTALL_DIR/$APP_NAME.AppImage --no-sandbox "$@" &> "\$(mktemp /tmp/cursor.XXXXX)" & disown
+$INSTALL_DIR/$APP_NAME.AppImage --no-sandbox "\$@" &> "\$(mktemp /tmp/cursor.XXXXX)" & disown
 EOL
 chmod +x "$INSTALL_DIR/cursor"
 
